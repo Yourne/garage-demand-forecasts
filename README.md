@@ -1,5 +1,4 @@
-# Garage demand forecasts
-A notebook on modeling a time series for predicting the demand of parking lots of italian garage in the seaside.
+# Forecasting the demand of parking lots for an Italian garage in the seaside
 
 ## How to run the notebook locally
 ### Create and activate a new virtual python enviroment
