@@ -1,12 +1,12 @@
 # Forecasting the demand of parking lots for an Italian garage in the seaside
 
 ## How to run the notebook locally
-### Create and activate a new virtual python enviroment
+### Create and activate a new virtual python environment
 #### Using uv
 1. Execute `uv sync` in the project directory root.
-it Create a python virtual env in the `.venv`cfolder at the root of the project directory
-2. Activate the python virtual enviroment `source .venv/bin/activate`
-3. Execute the notebook with your ide.
+It create a python virtual env in the `.venv` folder at the root of the project directory
+2. Activate the python virtual environment `source .venv/bin/activate`
+3. Execute the notebook with your IDE.
 #### Using bare python
 1. Ensure that your version matches that of specified by the pyproject.toml file.
 2. Create a python venv `python -m venv .venv`
