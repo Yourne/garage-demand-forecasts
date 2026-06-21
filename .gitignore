@@ -1,5 +1,4 @@
 .venv/
 .ipynb_checkpoints/
-*_files/
 /.quarto/
 **/*.quarto_ipynb
