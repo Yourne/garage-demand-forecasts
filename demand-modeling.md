@@ -11,23 +11,23 @@ jupyter:
     language: python
     name: python3
 ---
+
 <!-- # Introduction
 My family runs a garage, and as a recent MSc Data Science graduate, I wanted to contribute by developing a tool that forecasts how many cars are likely to come in. 
 I believe this could help with shift planning and ease the burden caused by the uncertainty of when the garage will return to its normal workload after soem busy hours. -->
-## Summary
+# Summary
 I developed a model to forecast the hourly demand of parking lots for a seaside garage with multiple seasonlities. The resulting model achieves
-an average out-of-sample mean absolute error of 1 lot for with a horizon of 6 hours, 30 lots with a week. The model can be realiably used to help operation managers decide an apt number of workers to accommodate the demand. It is also the furst step for a dynamic pricing strategy.
+an average out-of-sample mean absolute error of 30 lots for with a horizon of 6 hours, 50 lots with a week. The model can be realiably used to help operation managers decide an apt number of workers to accommodate the demand. It is also the first step for a dynamic pricing strategy.
 
 The dataset is novel: I personally collected and cleaned the dataset from the firm.   
 
 ## Business requirements
-The forecasting needs to satisfy at least horizons: the next few hours and the next few days. Foreseeing the next few hours and the next few days gives the operation manager the possibility to know in advance at different time frame when to call other workers to work (and when to dismiss them) and when to prepare to close the garage when the full-capacity is reached. 
+The forecasting horizons are the next few hours and the next few days. Foreseeing the next few hours and the next few days gives the operation manager the possibility to know in advance at different time frame when to call other workers to work (and when to dismiss them). A dynamic pricing strategy can benefit from the same horizons. 
 
-## Extract Transform Load
+# Dataset
 The original dataset consists of a SQL table. Each entry records the datetime of arrival and the datetime of departure the type of vehicle and the paid amount. 
 
 The snippet computes the number of cars for a given frequency
-
 
 ```python
 import pandas as pd
@@ -47,10 +47,7 @@ def count_cars(
     return car_count_sr
 ```
 
-The frequency chosen is the hour. A shorter time span would increase the 
-computational cost without providing additional value for practical operations.
-
-The resulting dataset can be found in `'./data/cars-per-hour.csv`.
+The frequency chosen is the hour. A shorter time span would increase the computational cost without providing additional value for practical operations. The resulting dataset can be found in `'./data/cars-per-hour.csv`.
 
 ```python
 import matplotlib.pyplot as plt
@@ -104,7 +101,7 @@ def plot_subseries(df: pd.DataFrame, column:str, period:Period):
             ax[i].set_title(weekday_name_ls[i])
             ax[i].plot(y)
             sub_series_avg = gb.mean()
-            ax[i].hlines(sub_series_avg, y.index[0], y.index[-1], color="red")
+            ax[i].hlines(sub_series_avg, y.index[0], y.index[-1], color="blue")
             ax[i].set_ylabel(column)
             ax[i].label_outer()
             ax[i].grid()
@@ -114,42 +111,17 @@ def plot_subseries(df: pd.DataFrame, column:str, period:Period):
 plot_subseries(cars, "cars", "week")
 ```
 
-the blue line shows for average number of cars each month and day of the week. 
-The red line shows the average number of cars for each day of the week.
-
+The red line shows for average number of cars each month and day of the week. The blue line shows the average number of cars for each day of the week.
 The plot confirms that:
-* non-working days show an average which is higher and double the average of 
-working days.
-* June Thursdays have a higher because of June 2 national holiday happened on a
-Thursday. 
+* non-working days show an average which is higher and double the average of working days.
+* June Thursdays have a higher because of June 2 national holiday happened on a Thursday. 
 * increasing trend from May to August, especially for working days. 
 
 
-# Should I split the dataset into training and test sets?
-In data science and machine learning, splitting the dataset into training and test sets is considered best practice to evaluate the performance of concurrent models. This practice comes from the need to evaluate the performance of models in a scenario that resembles the real world, where the future information, namely the test set, is not available, especially when designing the model itself. 
-
-In the context of time series modeling, though, I have seldom encountered this practice. People model time series using the whole dataset and relies on heuristics such as AIC, and BIC to determine which model is best.
-
-<!-- Indeed, why would I restrain some information available to the model 
-optimization routine to the model I actually want to put in production? 
-This would impede the model from having a better forecasting capability.  -->
-
-This difference in approach reflects the differing nature of the models. Machine learning algorithms such as support vector machines, random forests, and k-nearest neighbors are non-parametric, and information criterions cannot be used to determine the quality of a model because there is not an a priori set of the parameters to learn (they are *non-parametric*), as the model functional form depends on size of the dataset itself.  For example the bias vector in a support vector machine, or the classifier function of a k-NN that depends exclusively on the training sample.
-
-In non-parametric models, I want to shield the model from overfitting the dataset, thus requiring a testing routine where information does not slip in and pollute the error measure. 
-
-On the contrary, in the set of parametric models, the number of parameters to learn does not depend on the size of the training set and information criterions can be used for model selection; indeed, it can be shown that such heuristics converge to a cross validation approach, given enough data. 
-
-Yet, it is not advised to compare a model from one family of parametric models against another (e.g. ARMA model vs ETS model) because the respective likelihood functions differ.
-
-With regard to this notebook, I want to compare at least two families of parametric models. So we will select the best model within the single family with proven heuristics like AIC and BIC, and compare the best model of  each family with a rolling origin method.
-
-Note. From a mere lexical point of view, machine learning algorithms encompass ARMA models as well. Yet, machine learning manuals often do not take into consideration such models. (ref. Kevin P. Murphy, _Machine Learning: A Probabilistic Perspective_, or James et al. _An introduction to Statistical Learning_, James et al.)
-<!-- e l'altro manuale su 
-cui ho studiato a mathematics for machine learning e quello di methods).  -->
+# Methods
 
 
-# Modeling with ARMA
+## Modeling with ARMA
 Following the Box Jenkins method (Box, G.E.P. and G.M. Jenkins (1970) Time series analysis: Forecasting and control, San Francisco: Holden-Day.), the first question to ask ourselves when modeling with ARMA processes is whether our process is (weakly) stationary.
 
 ```python
@@ -168,7 +140,6 @@ from scipy import stats
 
 # compute the optimal lmbda parameter
 _, lmbda = stats.boxcox(cars.cars + 1)
-
 
 cars['boxcox'] = cars.cars \
     .transform(lambda x: x + 1) \
@@ -214,7 +185,7 @@ The sample autocorrelation function (ACF) and sample partial autocorrelation fun
 * the ACF decays expotentially up until the 24-hour lag.
 * the PACF are below the 95% threshold after the third lag.
 
-Let's investigate the periodic patterns extending the function to incorporate the weekly period.
+Let's investigate the periodic patterns by extending the time frame to incorporate the weekly period.
 
 ```python
 tsa.graphics.plot_acf(cars.x.dropna(), lags=24 * 8)
@@ -222,7 +193,7 @@ tsa.graphics.plot_pacf(cars.x.dropna(), lags=24 * 8)
 plt.show()
 ```
 
-The extended ACF and PACF shows that not all periodic infomration has beed extracted the time series as the PACF shows above threshold values around 24-hour lag and 168-hour lag.
+The extended ACF and PACF show that not all periodic information has been extracted from the time series as the PACF shows elements above threshold values arount 24-hour lag and 168-hour lag.
 Let us apply a second order seasonal difference
 
 ```python
@@ -232,20 +203,13 @@ tsa.graphics.plot_pacf(y.dropna(), lags=24 * 8)
 plt.show()
 ```
 
-The PACF above threshold values are heighten. So the differencing process is subtler than this.
-Model comparison:
+The PACF above threshold values are heightened. So the differencing process is subtler than a second order differentiation. Nontheless, let's look at the AR(2) model in-sample evalutation
 
 ```python
-AR1 = tsa.SARIMAX(cars.x, order=(1, 0, 0), trend='n').fit(disp=False)
 AR2 = tsa.SARIMAX(cars.x, order=(2, 0, 0), trend='n').fit(disp=False)
-```
+AR2.summary()
 
-```python
-print(f"AR(1) AIC: {AR1.aic:.4f}, BIC: {AR1.bic:.4f}")
-print(f"AR(2) AIC: {AR2.aic:.4f}, BIC: {AR2.bic:.4f}")
 ```
-
-The best model is AR(2). 
 
 ```python
 AR2.plot_diagnostics()
@@ -256,14 +220,10 @@ plt.show()
 On one hand, the ACF of the residuals looks like white noise, hence the $AR(2)$ has good fit. On the other hand, the estimated density function of the residuals show high kurtosis. By looking at the time-series plot we determine that the majority of the samples in the tails belong to the months of May and June and to September, months with a higher variance.
 
 ```python
-print(AR1.summary())
-```
-
-```python
 print(AR2.summary())
 ```
 
-The Ljung-Box test p-value (prob(Q)) points out that the residuals are white noise. So the model has a good fit.  
+The Ljung-Box test p-value (prob(Q)) points out that the residuals are white noise, confirming that the model has a good fit.  
 On the contrary, the already cited curtosis and the heteroskedasticity's test p-value show that the variance of the process is time-dependent despite of the Box-Cox transformation.
 
 A natural continuation is to model the process using _Generalized Autoregressive Conditional Heteroskedasticity_ (GARCH) models that are designed to handle clusters of variance, but this is a story for another time.
@@ -316,21 +276,6 @@ print(f"AIC: {AR2_holiday.aic:.4f}, BIC: {AR2_holiday.bic:.4f}")
 
 As we can see, the increased complexity of the models improves both AIC and BIC.
 Among the two, the "ct" (constant and trand) is the best one. 
-
-Let's wrap up the modeling so far.
-The initial transformation are
-$$
-\begin{split}
-z_t &  = boxcox(cars_t + 1 | \lambda) \\
-x_t & = (1 - L^m) z_t \quad m = 24 * 7\\
-\end{split}
-$$
-then, we modeled $x_t$ as a second order autoregressive model
-$$ (1 - \phi_1 L - \phi_2 L^2)x_t = w_t \quad w \in WN(0, \sigma^2)$$
-finally, we added a deterministic trend and intercept:
-$$ 
-y_t = \beta_0 + \beta_1 t + x_t
-$$
 
 ```python
 print(AR2_ct.summary())
@@ -451,14 +396,16 @@ def evaluate_forecast_model(
     result_df = pd.DataFrame(result_ls)
     return result_df
 
+```
+
+```python
 # compute point and prediction interval forecasts
 # AR(2) + deterministic trend
 def sar2_forecast(z: pd.Series, h: int, alpha:float):
     season = 24 * 7
     x = z - z.shift(periods=season)
-    model = tsa.SARIMAX(x, order=(2, 0, 0), trend='ct', enforce_stationarity=False).fit(disp=False)
+    model = tsa.SARIMAX(x, order=(2, 0, 0), trend='ct').fit(disp=False)
     if model.mle_retvals['converged'] == False:
-        print(f"model did't converge")
         print(model.summary())
         pprint(model.mle_retvals)
         raise ConvergenceError
@@ -476,15 +423,13 @@ HORIZON = 24 * 7
 SPLIT_N = 20
 ALPHA = 0.2
 sar2_week_result_df = evaluate_forecast_model(sar2_forecast, cars.cars, horizon=HORIZON, split_n=SPLIT_N, alpha=ALPHA)
-# sar2_3d_result_df = evaluate_forecast_model(sar2_forecast, cars.cars, horizon=24 * 3, split_n=SPLIT_N, alpha=ALPHA)
-# sar2_3d_result_df = evaluate_forecast_model(sar2_forecast, cars.cars, horizon=6, split_n=SPLIT_N, alpha=ALPHA)
 ```
 
 The model didn't converge, which is concerning.
 
-The defualt minimization algorithm is the Broyden-Fletcher-Goldfarb-Shanno (BFGS). From the [docs](https://github.com/statsmodels/statsmodels/blob/main/statsmodels/base/model.py), `warnflag: 2` means that _gradient and/or function calls are not changing_ which tipically means that the objective function the algorithm couldn't find a direction of improvement, the objectie function is flat.
+The defualt minimization algorithm is the Broyden-Fletcher-Goldfarb-Shanno (BFGS). From the [docs](https://github.com/statsmodels/statsmodels/blob/main/statsmodels/base/model.py), `warnflag: 2` means that _gradient and/or function calls are not changing_ which tipically means that the BFGS algorithm couldn't find a direction of improvement in the objective function, that is, the objective function is flat surface at the given point.
 
-Looking at the model parameters, the drift is almost zero, and the P-value is over the ten percent. Let's drop it and see the results
+Looking at the model parameters, the drift is almost zero, and the P-value is over ten percent. Let's drop it and see the results
 
 ```python
 # compute point and prediction interval forecasts
@@ -492,30 +437,7 @@ Looking at the model parameters, the drift is almost zero, and the P-value is ov
 def sar2_forecast(z: pd.Series, h: int, alpha:float):
     season = 24 * 7
     x = z - z.shift(periods=season)
-    model = tsa.SARIMAX(x, order=(2, 0, 0), trend='c', enforce_stationarity=False).fit(disp=False)
-    if model.mle_retvals['converged'] == False:
-        print(f"model did't converge")
-        print(model.summary())
-        pprint(model.mle_retvals)
-        raise ConvergenceError
-    mean = model.get_forecast(h).predicted_mean \
-        .add(z.tail(season).head(h).values)
-    pred_int_df = model.get_forecast(h).conf_int(alpha) \
-        .add(z.tail(season).head(h).values.reshape(-1, 1))
-    preds = pd.concat([mean, pred_int_df], axis=1)
-    return preds
-
-sar2_week_result_df = evaluate_forecast_model(sar2_forecast, cars.cars, horizon=24 * 7, split_n=SPLIT_N, alpha=ALPHA)
-```
-
-Even the intercept failed with a smaller training set. Let's remove also that one.
-
-```python
-# AR(2)
-def sar2_forecast(z: pd.Series, h: int, alpha:float):
-    season = 24 * 7
-    x = z - z.shift(periods=season)
-    model = tsa.SARIMAX(x, order=(2, 0, 0), enforce_stationarity=False).fit(disp=False)
+    model = tsa.SARIMAX(x, order=(2, 0, 0), trend='c').fit(disp=False)
     if model.mle_retvals['converged'] == False:
         print(f"model did't converge")
         print(model.summary())
@@ -536,11 +458,11 @@ sar2_6h_result_df = evaluate_forecast_model(sar2_forecast, cars.cars, horizon=6,
 ```python
 title="Seasonal AR(2) for different horizon and increasing training set size"
 ax = pd.DataFrame({
-    "horizon: week": sar2_week_result_df["mae"],
-    "horizon: 3d": sar2_3d_result_df["mae"], 
-    "horizon: 6h":  sar2_6h_result_df["mae"],
+    "horizon: week": sar2_week_result_df["rmse"],
+    "horizon: 3d": sar2_3d_result_df["rmse"], 
+    "horizon: 6h":  sar2_6h_result_df["rmse"],
     "training set size [weeks]": sar2_6h_result_df["train_sr_len"]
-    }).plot(x="training set size [weeks]", ylim=(0, 150), ylabel="mean absolute error", title=title)
+    }).plot(x="training set size [weeks]", ylim=(0, 300), ylabel="mean absolute error", title=title)
 ax.set_xticks([24 * 7 * w for w in range(2, 20 + 1, 2)])
 ax.set_xticklabels([str(i) for i in range(2, 20 + 1, 2)])
 plt.show()
@@ -551,6 +473,22 @@ print(sar2_week_result_df["mae"].mean())
 print(sar2_3d_result_df["mae"].mean())
 print(sar2_6h_result_df["mae"].mean())
 ```
+
+Let's wrap up the modeling so far.
+The initial transformation are
+$$
+\begin{split}
+z_t &  = boxcox(cars_t + 1 | \lambda) \\
+x_t & = (1 - L^m) z_t \quad m = 24 * 7\\
+\end{split}
+$$
+then, we modeled $x_t$ as a second order autoregressive model
+$$ (1 - \phi_1 L - \phi_2 L^2)x_t = w_t \quad w \in WN(0, \sigma^2)$$
+finally, we added an intercept:
+$$ 
+y_t = \beta_0 + x_t
+$$
+
 
 # Modeling with Exponential Smoothing
 Next, we model the time series within ETS (Error, Trend, Seasonal) theoretical framework. It is challenging because the time-series frequency is hourly, and the seasonal period is weekly, leading to a large number of parameters to optimize and to a potentially unstable optimization routine. 
@@ -670,8 +608,8 @@ plt.show()
 
 ```
 
-## Models selection and evaluation
-In order to choose the best model between the SAR(2) and the SES, we are going to
+## Out-of-sample model evaluation
+We are going to apply the same cross-valition routine:
 1. randomly select N instants of the time series
 2. train each model from instant 0 to the selected instant. 
 3. forecast h samples 
@@ -705,7 +643,7 @@ SPLIT_N = 20
 ALPHA = 0.2
 s_ets_week_result_df = evaluate_forecast_model(s_ets_forecast, cars.cars, horizon=24 * 7, split_n=SPLIT_N, alpha=ALPHA)
 s_ets_3d_result_df = evaluate_forecast_model(s_ets_forecast, cars.cars, horizon=24 * 3, split_n=SPLIT_N, alpha=ALPHA)
-s_ets_3d_result_df = evaluate_forecast_model(s_ets_forecast, cars.cars, horizon=6, split_n=SPLIT_N, alpha=ALPHA)
+s_ets_6h_result_df = evaluate_forecast_model(s_ets_forecast, cars.cars, horizon=6, split_n=SPLIT_N, alpha=ALPHA)
 ```
 
 # Seasonal AR(2) and Seasonal SES comparison
@@ -756,76 +694,32 @@ for i in range(nrows):
 
 
 ```python
-pd.concat([sar2_week_result_df, s_ets_week_result_df]) \
+pd.concat([sar2_week_result_df, s_ets_week_result_df, sar2_3d_result_df, s_ets_3d_result_df, sar2_6h_result_df, s_ets_6h_result_df]) \
     .drop(columns=["predicted_mean", "lower", "upper", "train_sr_len", "alpha"]) \
-    .groupby("model").mean().sort_values("rmse")
+    .groupby(["horizon", "model", ]).mean()
 ```
 
 Now that we have the full picture, we compare the models.
-**Seasonally adjusted simple exponential model with additive error**
-* pro: better at predicting with fewer samples. With only 179 training samples, it yields a mean absolute error of only nine.
-* con: the quantile forecasts minimum and maximum values increases with as the distance from the last training sample. 
-
-**Seasonal AR(2)**
-* pro: the quantile forecasts is mostly stable even when the horizon distance increases
-* con: worse at predicting with fewer samples than the other model
-
-Both models are not robust to outliers: they translate unpredicted outliers to the following seasonal period  -- see weeks May 15 -> May 22, Aug 16 -> Aug 23, Sept 11 -> Sept 19.
-
-**Training length against MAE**
-Only the mean absolute error (MAE) is plotted because the RMSE is highly correlated with it, yet it is harder to interpret.
+Both models are not robust to outliers: they translate unpredicted outliers to the following seasonal period  -- see weeks May 15 -> May 22, Aug 16 -> Aug 23, Sept 11 -> Sept 19. 
+The SES model outperforms the SAR(2) because the previous week outliers reverberate less over in the prediction. 
+Moreover, the SES model predicts better even with two weeks of data. The only advantage of the SAR(2) model is that the quantile forecasts are mostly stable when the horizon distance increases
 
 ```python
-plt.plot(sar2_week_result_df["train_sr_len"], sar2_week_result_df["mae"], label="Seas. AR(2) MAE")
-plt.plot(s_ets_week_result_df["train_sr_len"], s_ets_week_result_df["mae"], label="Seas. SES MAE")
-plt.ylabel("Mean Absolute Error")
+plt.plot(sar2_6h_result_df["train_sr_len"], sar2_6h_result_df["mae"], label="Seas. AR(2) MAE")
+plt.plot(s_ets_6h_result_df["train_sr_len"], s_ets_6h_result_df["mae"], label="Seas. SES MAE")
+plt.ylabel("Mean Absolute Error - 6h horizon")
 plt.xlabel("training series length in weeks")
 plt.ylim(bottom=0, top=200)
-# ymin=min(*sar2_week_result_df["mae"], *s_ets_week_result_df["mae"])
-# plt.vlines([24 * 7 * 2, 24 * 7 * 3, 24 * 7 * 4, 24 * 7 * 5], ymin, 200, linestyles="dotted")
 plt.xticks([24 * 7 * w for w in range(1, 20)], [str(w) for w in range(1, 20)])
 plt.legend()
 plt.show()
 ```
 
 The spikes we see in the MAE coincides with the week with the training size plot correlates with the periods of higher variances. 
-To have the best of both models, we can select the seasonal ETS for month, then switch to the autoregressive for the remaining time.
 
-```python
-import warnings
-def model_ensable_forecast(z: pd.Series, h: int, alpha: float):
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore")
-        threshold = 24 * 7 * 4
-        if len(z) > threshold:
-            return sar2_forecast(z, h, alpha)
-        else:
-            return s_ets_forecast(z, h, alpha)
-
-res_week_df = evaluate_forecast_model(model_ensable_forecast, cars.cars, horizon=24 * 7, split_n=SPLIT_N, alpha=ALPHA)
-res_3d_df = evaluate_forecast_model(model_ensable_forecast, cars.cars, horizon=24 * 3, split_n=SPLIT_N, alpha=ALPHA)
-res_6h_df = evaluate_forecast_model(model_ensable_forecast, cars.cars, horizon=6, split_n=SPLIT_N, alpha=ALPHA)
-```
-
-```python
-pd.DataFrame({
-    "training size": res_week_df["train_sr_len"],
-    "MAE week": res_week_df["mae"], 
-    "MAE 3days": res_3d_df["mae"],
-    "MAE 6hours": res_6h_df["mae"],
-    }).plot(x="training size")
-plt.show()
-```
-
-```python
-print(res_week_df["mae"].mean())
-print(res_3d_df["mae"].mean())
-print(res_6h_df["mae"].mean())
-```
 
 # Final considerations and future developments
-* The ensemble model can be used in production because the mean absolute error of the point forecasts is within 20 to 50 cars which is a reasonable error to schedule the employee shifts and apply dynamic pricing.
-* The main drawbacks is that it is not robust: an extreme value in the previous week heavily entails a spike in the predicted mean of the same day.
+* The main drawbacks is that not model robust against outliers: an extreme value in the previous week entails a spike in the predicted mean the following week. Yet, from an operational perspective, since the outliers are easily recognizable, the best model can be deployed in production: the avarage error of 30 lots is enough to schedule shifts and create a dynamic pricing strategy.
 * From the modeling perspective, GARCH models may overcome the problem of the heteroschedasticity of our time-series. 
 * From the analysis perspective, a more systematic approach to evaluate the quantile predictions is computing the _Continuous Ranked Probability Score_ [ref](https://doi.org/10.1146/annurev-statistics-062713-085831)
 
