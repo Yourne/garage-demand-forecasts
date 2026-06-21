@@ -220,7 +220,7 @@ plt.show()
 On one hand, the ACF of the residuals looks like white noise, hence the $AR(2)$ has good fit. On the other hand, the estimated density function of the residuals show high kurtosis. By looking at the time-series plot we determine that the majority of the samples in the tails belong to the months of May and June and to September, months with a higher variance.
 
 ```python
-print(AR2.summary())
+AR2.summary()
 ```
 
 The Ljung-Box test p-value (prob(Q)) points out that the residuals are white noise, confirming that the model has a good fit.  
@@ -267,18 +267,11 @@ print(f"Dynamic regression model with AR(2) errors")
 print(f"AIC: {AR2_holiday.aic:.4f}, BIC: {AR2_holiday.bic:.4f}")
 ```
 
-```python
-# Dynamic regression model with AR(2) errors
-# AIC: 1586.8196, BIC: 1611.5207
-# Dynamic regression model with AR(2) errors
-# AIC: 1581.2376, BIC: 1612.1140
-```
-
 As we can see, the increased complexity of the models improves both AIC and BIC.
 Among the two, the "ct" (constant and trand) is the best one. 
 
 ```python
-print(AR2_ct.summary())
+AR2_ct.summary()
 ```
 
 ```python
@@ -466,12 +459,6 @@ ax = pd.DataFrame({
 ax.set_xticks([24 * 7 * w for w in range(2, 20 + 1, 2)])
 ax.set_xticklabels([str(i) for i in range(2, 20 + 1, 2)])
 plt.show()
-```
-
-```python
-print(sar2_week_result_df["mae"].mean())
-print(sar2_3d_result_df["mae"].mean())
-print(sar2_6h_result_df["mae"].mean())
 ```
 
 Let's wrap up the modeling so far.
